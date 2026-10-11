@@ -1,0 +1,292 @@
+
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-kotten 🦔</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Arial,sans-serif;background:linear-gradient(135deg,#e6f5df,#f8f4e8);color:#243b2b;display:flex;justify-content:center;align-items:center;padding:15px}
+.app{width:100%;max-width:680px;background:white;border-radius:24px;overflow:hidden;box-shadow:0 12px 40px #25452a20}
+header{background:#246b3b;color:white;padding:22px;text-align:center}
+.avatar{font-size:60px}
+header h1{margin:5px;font-size:30px}
+header p{margin:8px 0;color:#e2f5df}
+.status{display:inline-block;margin-top:8px;padding:6px 12px;background:#ffffff20;border-radius:20px;font-size:12px}
+.intro{padding:15px 20px 5px;text-align:center;color:#617366;font-size:14px}
+#chatt{height:340px;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;background:#fcfdfb}
+.meddelande{max-width:88%;padding:12px 15px;border-radius:17px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-wrap}
+.kotten{align-self:flex-start;background:#e6f4e4;border-bottom-left-radius:5px}
+.du{align-self:flex-end;background:#dceaff;border-bottom-right-radius:5px}
+.avsandare{display:block;font-size:12px;font-weight:bold;margin-bottom:5px;color:#3c6045}
+.du .avsandare{color:#355b91}
+.snabbval{padding:0 15px 14px;display:flex;flex-wrap:wrap;gap:8px;background:#fcfdfb}
+button{cursor:pointer}
+.snabbval button{background:white;color:#28643a;border:1px solid #b9d7bb;border-radius:20px;padding:8px 12px}
+.snabbval button:hover{background:#e6f4e4}
+.skrivrad{display:flex;gap:10px;padding:15px;border-top:1px solid #e5eee4}
+#meddelande{flex:1;min-width:0;padding:13px;border:1px solid #cad9c9;border-radius:14px;font-size:16px}
+#skicka{padding:0 17px;background:#287a43;color:white;border:0;border-radius:14px;font-size:16px}
+#skicka:hover{background:#195b30}
+button:disabled{opacity:.6;cursor:wait}
+.extra{display:flex;justify-content:center;gap:10px;padding:0 10px 12px;flex-wrap:wrap}
+.extra button{border:0;background:#f0f5ed;color:#34563a;border-radius:9px;padding:8px 12px}
+.fot{padding:0 15px 16px;color:#788679;font-size:11px;text-align:center}
+@media(max-width:450px){body{padding:5px}.app{border-radius:16px}#chatt{height:45vh}header h1{font-size:25px}}
+</style>
+</head>
+
+<body>
+<main class="app">
+<header>
+<div class="avatar">🦔</div>
+<h1>AI-kotten</h1>
+<p>Din egen lilla chattkompis</p>
+<div class="status" id="status">● Redo att chatta</div>
+</header>
+
+<div class="intro">Jag är AI-kotten! Jag försöker förstå dina frågor och komma ihåg vår chatt på den här datorn.</div>
+
+<div id="chatt" aria-live="polite"></div>
+
+<div class="snabbval">
+<button type="button" data-text="Hej!">👋 Hej!</button>
+<button type="button" data-text="Vad kan du göra?">💡 Vad kan du göra?</button>
+<button type="button" data-text="Jag gillar Minecraft">⛏️ Minecraft</button>
+<button type="button" data-text="Berätta ett skämt">😄 Ett skämt</button>
+</div>
+
+<form class="skrivrad" id="form">
+<input id="meddelande" placeholder="Skriv till AI-kotten..." autocomplete="off" aria-label="Ditt meddelande">
+<button id="skicka" type="submit">Skicka ➤</button>
+</form>
+
+<div class="extra">
+<button type="button" id="minne">🧠 Vad minns du?</button>
+<button type="button" id="rensa">🧹 Börja om</button>
+</div>
+
+<div class="fot">AI-kotten · HTML, CSS och JavaScript</div>
+</main>
+
+<script>
+const form = document.getElementById("form");
+const falt = document.getElementById("meddelande");
+const ruta = document.getElementById("chatt");
+const statusRuta = document.getElementById("status");
+const skickaKnapp = document.getElementById("skicka");
+
+let historik = [];
+let minnen = {};
+
+try {
+  historik = JSON.parse(localStorage.getItem("kotten_historik") || "[]");
+  minnen = JSON.parse(localStorage.getItem("kotten_minnen") || "{}");
+} catch (e) {
+  historik = [];
+  minnen = {};
+}
+
+function spara() {
+  try {
+    localStorage.setItem("kotten_historik", JSON.stringify(historik.slice(-80)));
+    localStorage.setItem("kotten_minnen", JSON.stringify(minnen));
+  } catch (e) {
+    statusRuta.textContent = "● Kunde inte spara minnet";
+  }
+}
+
+function laggTillMeddelande(namn, text, klass, sparaIHistorik = true) {
+  const bubbla = document.createElement("div");
+  bubbla.className = "meddelande " + klass;
+
+  const avsandare = document.createElement("span");
+  avsandare.className = "avsandare";
+  avsandare.textContent = namn;
+
+  const innehall = document.createElement("span");
+  innehall.textContent = text;
+
+  bubbla.append(avsandare, innehall);
+  ruta.appendChild(bubbla);
+  ruta.scrollTop = ruta.scrollHeight;
+
+  if (sparaIHistorik) {
+    historik.push({ namn, text, klass });
+    historik = historik.slice(-80);
+    spara();
+  }
+}
+
+function visaHistorik() {
+  ruta.innerHTML = "";
+
+  if (!historik.length) {
+    laggTillMeddelande(
+      "🦔 AI-kotten",
+      "Hej! Välkommen till min lilla värld! 😊 Vad vill du prata om?",
+      "kotten",
+      false
+    );
+    return;
+  }
+
+  historik.forEach(m =>
+    laggTillMeddelande(m.namn, m.text, m.klass, false)
+  );
+}
+
+function laraMig(text) {
+  let match;
+
+  match = text.match(/(?:jag heter|mitt namn är)\s+([a-zåäö-]+)/i);
+  if (match) minnen.namn = match[1];
+
+  match = text.match(/(?:min favoritfärg är|jag gillar färgen)\s+([a-zåäö]+)/i);
+  if (match) minnen.farg = match[1];
+
+  match = text.match(/(?:mitt favoritspel är|mitt favoritspel heter)\s+(.+)/i);
+  if (match) minnen.favoritspel = match[1].trim().slice(0, 80);
+
+  if (/jag gillar minecraft/i.test(text)) minnen.gillarMinecraft = true;
+  if (/jag gillar teknik/i.test(text)) minnen.gillarTeknik = true;
+
+  spara();
+}
+
+function minnesSvar() {
+  const saker = [];
+
+  if (minnen.namn) saker.push("du heter " + minnen.namn);
+  if (minnen.farg) saker.push("du gillar färgen " + minnen.farg);
+  if (minnen.favoritspel) saker.push("ditt favoritspel är " + minnen.favoritspel);
+  if (minnen.gillarMinecraft) saker.push("du gillar Minecraft");
+  if (minnen.gillarTeknik) saker.push("du gillar teknik");
+
+  return saker.length
+    ? "Jag minns att " + saker.join(", ") + ". 🧠"
+    : "Jag har inte sparat några personliga fakta ännu. Berätta något om dig!";
+}
+
+async function skickaMeddelande(text) {
+  const meddelande = (text || falt.value).trim();
+
+  if (!meddelande) {
+    falt.focus();
+    return;
+  }
+
+  laggTillMeddelande("Du", meddelande, "du");
+  laraMig(meddelande);
+  falt.value = "";
+
+  falt.disabled = true;
+  skickaKnapp.disabled = true;
+  statusRuta.textContent = "● AI-kotten tänker...";
+
+  const laddning = document.createElement("div");
+  laddning.className = "meddelande kotten";
+  laddning.textContent = "🦔 Tänker...";
+  ruta.appendChild(laddning);
+  ruta.scrollTop = ruta.scrollHeight;
+
+  try {
+    const tidigareMeddelanden = historik
+      .filter(m => m.namn === "Du" || m.namn === "🦔 AI-kotten")
+      .slice(-16)
+      .map(m => ({
+        role: m.namn === "Du" ? "user" : "assistant",
+        content: m.text
+      }));
+
+    const svar = await fetch(
+      "https://vireonix.ai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "auto",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Du är AI-kotten, en vänlig och hjälpsam AI som pratar svenska. " +
+                "Svara naturligt, förstå sammanhanget och följ upp tidigare meddelanden. " +
+                "Hjälp med frågor, teknik, programmering och spel. " +
+                "Var tydlig och lagom kort. Hitta inte på fakta. " +
+                "Du är en AI, inte en människa."
+            },
+            ...tidigareMeddelanden
+          ]
+        })
+      }
+    );
+
+    if (!svar.ok) {
+      throw new Error("AI-tjänsten svarade med felkod " + svar.status);
+    }
+
+    const data = await svar.json();
+    const textSvar = data.choices?.[0]?.message?.content;
+
+    if (!textSvar) {
+      throw new Error("AI:n skickade inget svar.");
+    }
+
+    laddning.remove();
+    laggTillMeddelande("🦔 AI-kotten", textSvar.trim(), "kotten");
+    statusRuta.textContent = "● Svar mottaget";
+
+  } catch (fel) {
+    laddning.textContent =
+      "Jag kunde inte ansluta till AI-tjänsten. " +
+      "Tjänsten kanske inte tillåter anrop direkt från webbläsaren. " +
+      "Fel: " + fel.message;
+
+    statusRuta.textContent = "● Anslutningen misslyckades";
+
+  } finally {
+    falt.disabled = false;
+    skickaKnapp.disabled = false;
+    falt.focus();
+  }
+}
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  skickaMeddelande();
+});
+
+document.querySelectorAll(".snabbval button").forEach(knapp => {
+  knapp.addEventListener("click", () => {
+    skickaMeddelande(knapp.dataset.text);
+  });
+});
+
+document.getElementById("minne").addEventListener("click", () => {
+  laggTillMeddelande("Du", "Vad minns du om mig?", "du");
+  laggTillMeddelande("🦔 AI-kotten", minnesSvar(), "kotten");
+});
+
+document.getElementById("rensa").addEventListener("click", () => {
+  if (confirm("Vill du radera historiken och sparade minnen på den här datorn?")) {
+    historik = [];
+    minnen = {};
+
+    localStorage.removeItem("kotten_historik");
+    localStorage.removeItem("kotten_minnen");
+
+    visaHistorik();
+    statusRuta.textContent = "● Minnet är rensat";
+  }
+});
+
+visaHistorik();
+falt.focus();
+</script>
+</body>
+</html>
